@@ -16,6 +16,9 @@ import {
 
 import { FaPhoneAlt, FaEnvelope, FaMapMarkerAlt } from "react-icons/fa";
 
+import emailjs from "@emailjs/browser";
+import { useState } from "react";
+
 const info = [
   {
     icon: <FaPhoneAlt className="text-accent" />,
@@ -36,7 +39,82 @@ const info = [
 
 import { motion } from "framer-motion";
 
+// EmailJS configuration
+const EMAILJS_CONFIG = {
+  serviceId: process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID,
+  templateId: process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID,
+  autoReplyTemplateId: process.env.NEXT_PUBLIC_EMAILJS_AUTOREPLY_TEMPLATE_ID,
+  publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY,
+};
+
 const Contact = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    service: "",
+    message: "",
+  });
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      // First email - contact form submission
+      await emailjs.send(
+        EMAILJS_CONFIG.serviceId,
+        EMAILJS_CONFIG.templateId,
+        {
+          from_name: `${formData.firstName} ${formData.lastName}`,
+          from_email: formData.email,
+          phone: formData.phone,
+          service: formData.service,
+          message: formData.message,
+          reply_to: formData.email,
+        },
+        EMAILJS_CONFIG.publicKey
+      );
+
+      // Second email - auto reply
+      await emailjs.send(
+        EMAILJS_CONFIG.serviceId,
+        EMAILJS_CONFIG.autoReplyTemplateId,
+        {
+          to_email: formData.email,
+          user_name: formData.firstName, // Changed from to_name to user_name
+          from_name: "Bett & Co",
+        },
+        EMAILJS_CONFIG.publicKey
+      );
+
+      setFormData({
+        firstName: "",
+        lastName: "",
+        email: "",
+        phone: "",
+        service: "",
+        message: "",
+      });
+      alert("Message sent successfully!");
+    } catch (error) {
+      console.error("Error sending email:", error);
+      alert("Failed to send message. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
   return (
     <motion.section
       initial={{ opacity: 0 }}
@@ -50,7 +128,10 @@ const Contact = () => {
         <div className="flex flex-col xl:flex-row gap-[30px]">
           {/* form */}
           <div className="xl:h-[54px] order-2 xl:order-none">
-            <form className="flex flex-col gap-6 p-10 bg-[#27272c] rounded-xl">
+            <form
+              onSubmit={handleSubmit}
+              className="flex flex-col gap-6 p-10 bg-[#27272c] rounded-xl"
+            >
               <h3 className="text-4xl text-accent">Let's work together</h3>
               <p className="text-white/60">
                 I am available for freelance work. Connect with me via phone or
@@ -58,13 +139,42 @@ const Contact = () => {
               </p>
               {/* input */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input type="firstname" placeholder="Firstname" />
-                <Input type="lastname" placeholder="Lastname" />
-                <Input type="email" placeholder="Email" />
-                <Input type="phone" placeholder="Phone number" />
+                <Input
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  type="text"
+                  placeholder="Firstname"
+                />
+                <Input
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  type="text"
+                  placeholder="Lastname"
+                />
+                <Input
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  type="email"
+                  placeholder="Email"
+                />
+                <Input
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  type="tel"
+                  placeholder="Phone number"
+                />
               </div>
               {/* select */}
-              <Select>
+              <Select
+                value={formData.service}
+                onValueChange={(value) =>
+                  setFormData((prev) => ({ ...prev, service: value }))
+                }
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select a service" />
                 </SelectTrigger>
@@ -86,12 +196,20 @@ const Contact = () => {
               </Select>
               {/* textarea */}
               <Textarea
+                name="message"
+                value={formData.message}
+                onChange={handleChange}
                 className="h-[200px]"
                 placeholder="Enter your message here..."
               />
               {/* buttons */}
-              <Button size="md" className="max-w-40">
-                send message
+              <Button
+                size="md"
+                className="max-w-40"
+                type="submit"
+                disabled={isLoading}
+              >
+                {isLoading ? "Sending..." : "Send Message"}
               </Button>
             </form>
           </div>
